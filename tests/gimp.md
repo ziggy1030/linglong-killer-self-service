@@ -1,6 +1,6 @@
 
 
-# 元数据
+# 构建参数
 ```package
 Package: gimp
 Version: 2.10.38-1deepin2
