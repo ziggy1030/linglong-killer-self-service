@@ -158,7 +158,7 @@ jobs:
         env:
           BODY: ${{ github.event.issue.body }}
           XDG_RUNTIME_DIR: /run/user/1001
-          TAG: self-build-${{steps.check.outputs.package}}-${{github.event.issue.number}}
+          TAG: self-build-${{github.event.issue.number}}
         working-directory: ${{ env.WORKING_DIR }}
       - name: Release
         if: ${{steps.check.outputs.valid=='yes'}}
