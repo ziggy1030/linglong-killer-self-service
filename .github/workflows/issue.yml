@@ -196,12 +196,12 @@ jobs:
 
           ## 构建参数
           \`\`\`package
-          $(cat package.info)
+          $(cat package.info||echo "#生成失败")
           \`\`\`
 
           ## linglong.yaml
           \`\`\`yaml
-          $(cat linglong.yaml)
+          $(cat linglong.yaml||echo "#生成失败")
           \`\`\`
           
           "
@@ -240,12 +240,12 @@ jobs:
 
           ## 构建参数
           \`\`\`package
-          $(cat package.info)
+          $(cat package.info||echo "#生成失败")
           \`\`\`
 
           ## linglong.yaml
           \`\`\`yaml
-          $(cat linglong.yaml)
+          $(cat linglong.yaml||echo "#生成失败")
           \`\`\`
           
           "
