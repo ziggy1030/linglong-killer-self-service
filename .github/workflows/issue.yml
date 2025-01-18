@@ -14,7 +14,7 @@ env:
 jobs:
   process:
     name: Process
-    if: ${{ !github.event.issue.pull_request&&github.event.issue.state=='open' }}
+    if: ${{ !github.event.issue.pull_request&&github.event.issue.state=='open'&&contains(github.event.issue.labels.*.name, 'self-build') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
