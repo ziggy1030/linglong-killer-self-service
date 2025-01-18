@@ -1,0 +1,17 @@
+version: "1"
+
+package:
+  id: {APP_ID}
+  name: {APP_NAME}
+  version: {APP_VER}
+  kind: app
+  description: |
+{APP_DESC}
+
+command: [entrypoint.sh] 
+
+base: {APP_BASE}
+runtime: {APP_RUNTIME}
+
+build: |
+  exec "{LL_KILLER_EXEC}" build

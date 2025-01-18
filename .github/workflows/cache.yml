@@ -1,0 +1,46 @@
+name: Build Cache
+run-name: Build Cache
+on:
+  workflow_dispatch:
+  schedule:
+      - cron: '0 0 */7 * *'
+jobs:
+  cache:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        base: ["org.deepin.base/23.1.0","org.deepin.foundation/20.0.0","org.deepin.foundation/23.0.0","com.uniontech.foundation/20.0.1"]
+      fail-fast: false
+    steps:
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/linglong-builder/
+          key: linglong-builder-cache-${{matrix.base}}
+      - name: install
+        run: |
+          sudo apt install -y apt-transport-https ca-certificates curl gpg xdg-utils
+          sudo mkdir -p /etc/apt/keyrings/
+          curl -fsSL https://download.opensuse.org/repositories/home:/kamiyadm/xUbuntu_24.04/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/linglong-apt-keyring.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/linglong-apt-keyring.gpg] https://download.opensuse.org/repositories/home:/kamiyadm/xUbuntu_24.04/ ./" | sudo tee /etc/apt/sources.list.d/linglong.list
+          sudo apt update
+          sudo apt install linglong-builder linglong-box linglong-bin
+          ll-cli --version
+      - name: Build Cache
+        run: |
+          echo "$YAML"> linglong.yaml
+          ll-builder build
+        env:
+          YAML: |
+            version: "1"
+            package:
+              id: cache
+              name: Build Cache
+              version: 0.0.0.1
+              kind: app
+              description: Cache
+            command: [bash] 
+            base: ${{matrix.base}}
+            build: |
+              echo hello

@@ -1,0 +1,155 @@
+#!/bin/bash
+set -e
+if [ -n "$DEBUG" ]; then
+    set -x
+fi
+ROOT_DIR=$(dirname $(readlink -f "$0"))
+source "$ROOT_DIR/env.sh"
+SELF=$(readlink -f "$0")
+# DIFF_DIR=$(realpath "$1")
+MODE="$1"
+SHELL=${SHELL:-/bin/bash}
+shift 1 || true
+ARGS=("${@}")
+
+export RAW_SELF=${RAW_SELF:-$SELF}
+export RAW_DPKG_EXEC=${RAW_DPKG_EXEC:-$DPKG_EXEC}
+RAW_HOST_FS_DIR=/run/host/rootfs
+HOST_FS_DIR=${HOST_FS_DIR:-$RAW_HOST_FS_DIR}
+ROOT_FS_DIR=${ROOT_FS_DIR:-}
+
+LINGLONG_SRC_DIR=$ROOT_FS_DIR/project/linglong/sources
+LL_WORK_DIR=$(pwd)
+OVERLAY_DIR=$LL_WORK_DIR/filesystem
+MERGED_DIR=$OVERLAY_DIR/merged
+UPPER_DIR=$OVERLAY_DIR/upper
+WORK_DIR=$OVERLAY_DIR/work
+OLDFS_DIR=$MERGED_DIR/rootfs
+
+# export PATH=$PATH:$HOST_FS_DIR/bin:$HOST_FS_DIR/sbin
+# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOST_FS_DIR/usr/lib/x86_64-linux-gnu
+
+function mount_rootfs() {
+    # lower, merged
+    rm -rf $OVERLAY_DIR
+    lowerdir="$1"
+    mergeddir="$2"
+    mkdir -p "$UPPER_DIR" "$WORK_DIR" "$1" "$2"
+    fuse-overlayfs -o "lowerdir=$lowerdir,upperdir=$UPPER_DIR,workdir=$WORK_DIR,squash_to_root" "$mergeddir"
+}
+function mount_fuse() {
+    touch /dev/fuse
+    mount --bind $HOST_FS_DIR/dev/fuse /dev/fuse
+}
+function mount_data() {
+    mount --rbind ${ROOT_FS_DIR}/dev $MERGED_DIR/dev
+    DPKG_EXEC="$RAW_DPKG_EXEC" perl -pe 's/{DPKG_EXEC}/$ENV{DPKG_EXEC}/' "$APT_CONF" >"$LL_WORK_DIR/apt.conf"
+    touch "$MERGED_DIR/etc/apt/apt.conf.d/ll-killer"
+    mount --bind "$LL_WORK_DIR/apt.conf" "$MERGED_DIR/etc/apt/apt.conf.d/ll-killer"
+    if [ -f apt.conf ]; then
+        touch $MERGED_DIR/etc/apt/apt.conf.d/config
+        mount --bind apt.conf $MERGED_DIR/etc/apt/apt.conf.d/config
+    fi
+    if [ -f sources.list ]; then
+        mount --bind sources.list $MERGED_DIR/etc/apt/sources.list
+    fi
+    if [ -d sources.list.d ]; then
+        mount --rbind sources.list.d $MERGED_DIR/etc/apt/sources.list.d
+    fi
+    mkdir -p $LINGLONG_SRC_DIR
+    mount --rbind $LINGLONG_SRC_DIR $MERGED_DIR/var/cache/apt/archives
+    mount --rbind $ROOT_FS_DIR/tmp $MERGED_DIR/tmp
+    mount --rbind $ROOT_FS_DIR/home $MERGED_DIR/home
+    mount --rbind $ROOT_FS_DIR/proc $MERGED_DIR/proc
+    mkdir $MERGED_DIR/project && mount --rbind $ROOT_FS_DIR/project $MERGED_DIR/project || true
+}
+function clean() {
+    find "$UPPER_DIR" '(' -type c -or -name ".wh..*opq" ')' -exec rm -f {} \;
+    rm -rf "$UPPER_DIR/rootfs" "$UPPER_DIR/var/cache"
+}
+function copy() {
+    cp -arfT "$UPPER_DIR" "$PREFIX"
+}
+function reexec() {
+    # mode cmd ...args
+    ls -l "$SELF"
+    next=$1
+    shift
+    exec "$@" "$SELF" "$next" "${ARGS[@]}"
+}
+case "$MODE" in
+root)
+    reexec mount unshare -rm
+    ;;
+mount)
+    mount_fuse
+    mount_rootfs "${ROOT_FS_DIR:-/}" "$MERGED_DIR"
+    mount_data
+    reexec pivot_root unshare -m
+    ;;
+pivot_root)
+    mkdir -p $OLDFS_DIR
+    pivot_root "$MERGED_DIR" "$OLDFS_DIR"
+    ROOT_FS_DIR= HOST_FS_DIR=$RAW_HOST_FS_DIR SELF=$RAW_SELF reexec shell
+    ;;
+shell)
+    "${ARGS[@]:-$SHELL}"
+    ;;
+clean)
+    clean
+    ;;
+copy)
+    copy
+    ;;
+install)
+    clean
+    copy
+    ;;
+build)
+    exec "$ROOT_DIR/install.sh" "$ROOT_DIR/build.sh" "$@"
+    ;;
+local)
+    reexec local-env unshare -rm
+    ;;
+local-env)
+    APT_TMP_DIR=$(mktemp -d ll-killer.XXXXXX -p /tmp)
+    ./scripts/pkg-info.sh APT-Sources >sources.list
+    mkdir -p sources.list.d "$APT_TMP_DIR/apt" "$APT_TMP_DIR/cache"
+    mount --bind ./sources.list /etc/apt/sources.list
+    mount --rbind ./sources.list.d /etc/apt/sources.list.d
+    mount --rbind "$APT_TMP_DIR/apt" /var/lib/apt
+    mount --rbind "$APT_TMP_DIR/cache" /var/cache
+    apt -o APT::Sandbox::User="root" update -y
+    exec "$ROOT_DIR/generate.sh" "$@"
+    ;;
+generate)
+    reexec local
+    ;;
+setup)
+    exec "$ROOT_DIR/setup.sh" "$@"
+    ;;
+extract)
+    exec "$ROOT_DIR/extract.sh" "$@"
+    ;;
+dpkg-install)
+    exec "$SELF" -- "$ROOT_DIR/dpkg-install.sh" "$@"
+    ;;
+dev-host)
+    mkdir -p /rootfs
+    mount --rbind $HOST_FS_DIR /rootfs
+    mount --rbind /tmp /rootfs/tmp
+    mkdir -p /tmp/llfs
+    pivot_root /rootfs /rootfs/tmp/llfs
+    HOST_FS_DIR=/ ROOT_FS_DIR=/tmp/llfs SELF=/tmp/llfs/$SELF reexec mount
+    ;;
+dev)
+    reexec dev-host unshare -rm
+    ;;
+--)
+    # reexec dev
+    reexec root
+    ;;
+*)
+    # reexec root
+    ;;
+esac
