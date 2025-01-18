@@ -219,7 +219,7 @@ jobs:
           FAIL_MSG: "构建失败, 请检查配置或工作流输出。"
         working-directory: ${{ env.WORKING_DIR }}
       - name: Reply Success Result
-        if: success()
+        if: ${{steps.check.outputs.valid=='yes'&&success()}}
         run: |
           OK_ICON="https://img.shields.io/badge/build-%E6%9E%84%E5%BB%BA%E6%88%90%E5%8A%9F-brigthgreen"
           TIME=$(LC_ALL=zh_CN.UTF-8 date)
