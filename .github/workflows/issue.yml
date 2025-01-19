@@ -253,6 +253,11 @@ jobs:
           $(cat linglong.yaml||echo "#生成失败")
           \`\`\`
           
+          ## 构建日志
+          \`\`\`log
+          $(cat build.log||echo "#生成失败")
+          \`\`\`
+          
           "
           gh api \
             --method PATCH \

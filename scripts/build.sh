@@ -12,4 +12,4 @@ fi
 IFS=$' ,\n' read -r -a PKGS <<<"$(pkg_info_local Depends)"
 apt update -y
 dpkg --configure -a
-apt install --no-upgrade -yf "$PKG" "${PKGS[@]}"
+apt install --no-upgrade --reinstall -yf "$PKG" "${PKGS[@]}"
