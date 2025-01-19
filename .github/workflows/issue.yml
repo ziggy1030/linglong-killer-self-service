@@ -145,7 +145,7 @@ jobs:
             sudo mkdir -p $XDG_RUNTIME_DIR
             sudo chown -R 1001:1001 $XDG_RUNTIME_DIR
             sudo chmod 0700 $XDG_RUNTIME_DIR
-            ll-builder build
+            ll-builder build 2>&1 | tee build.log
             ll-builder export -l
           else
             echo "test" > "${{steps.check.outputs.package}}_binary.layer"
@@ -202,6 +202,11 @@ jobs:
           ## linglong.yaml
           \`\`\`yaml
           $(cat linglong.yaml||echo "#生成失败")
+          \`\`\`
+          
+          ## 构建日志
+          \`\`\`log
+          $(cat build.log||echo "#生成失败")
           \`\`\`
           
           "
