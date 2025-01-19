@@ -206,9 +206,9 @@ jobs:
           
           ## 构建日志
           \`\`\`log
-          $(cat build.log||echo "#生成失败")
+          $(dd if=build.log bs=1000 count=32||echo "#生成失败")
           \`\`\`
-          
+
           "
           gh api \
             --method PATCH \
@@ -255,7 +255,7 @@ jobs:
           
           ## 构建日志
           \`\`\`log
-          $(cat build.log||echo "#生成失败")
+          $(dd if=build.log bs=1000 count=32||echo "#生成失败")
           \`\`\`
           
           "
