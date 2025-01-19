@@ -92,7 +92,7 @@ pivot_root)
     ROOT_FS_DIR= HOST_FS_DIR=$RAW_HOST_FS_DIR SELF=$RAW_SELF reexec shell
     ;;
 shell)
-    "${ARGS[@]:-$SHELL}"
+    exec "${ARGS[@]:-$SHELL}"
     ;;
 clean)
     clean
@@ -119,10 +119,10 @@ local-env)
     mount --rbind "$APT_TMP_DIR/apt" /var/lib/apt
     mount --rbind "$APT_TMP_DIR/cache" /var/cache
     apt -o APT::Sandbox::User="root" update -y
-    exec "$ROOT_DIR/generate.sh" "$@"
+    reexec shell
     ;;
 generate)
-    reexec local
+    exec "$SELF" local "$ROOT_DIR/generate.sh" "$@"
     ;;
 setup)
     exec "$ROOT_DIR/setup.sh" "$@"
