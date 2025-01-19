@@ -12,4 +12,9 @@ fi
 IFS=$' ,\n' read -r -a PKGS <<<"$(pkg_info_local Depends)"
 apt update -y
 dpkg --configure -a
-apt install --no-upgrade --reinstall -yf "$PKG" "${PKGS[@]}"
+
+INSTALLED=$(LANG=en apt list "$PKG" "${PKGS[@]}" --installed 2>/dev/null | tail -n+2 | cut -d/ -f1)
+if [ -n "$INSTALLED" ]; then
+    apt remove -y $INSTALLED
+fi
+apt install --no-upgrade -yf "$PKG" "${PKGS[@]}"
