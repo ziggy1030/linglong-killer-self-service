@@ -45,12 +45,26 @@ Description: 软件描述信息（可选，支持多行）
 | **Description** | 否       | 软件包描述信息，支持多行内容，行首需有普通空格。                               |
 
 #### 2.1 已知的 Base 示例
-- `org.deepin.base/23.1.0`
-- `org.deepin.foundation/20.0.0`
-- `org.deepin.foundation/23.0.0`
-- `com.uniontech.foundation/20.0.1`
 
-#### 2.2 示例应用配置：
+| Base名称                          | 目标应用环境 |
+| --------------------------------- | ------------ |
+| `org.deepin.base/23.1.0`          | Deepin V23   |
+| `org.deepin.foundation/20.0.0`    | Deepin V20   |
+| `org.deepin.foundation/23.0.0`    | Deepin V23   |
+| `com.uniontech.foundation/20.0.1` | UOS          |
+
+#### 2.2 已知的 APT源 示例
+
+- Deepin V23  
+ `deb [trusted=yes] https://mirrors.tuna.tsinghua.edu.cn/deepin/beige beige main commercial community`
+- Deepin V23 商店  
+ `deb [trusted=yes] https://com-store-packages.uniontech.com/appstorev23 beige appstore`
+- Deepin V20  
+ `deb [trusted=yes] https://mirrors.tuna.tsinghua.edu.cn/deepin/apricot apricot main contrib non-free`
+- UOS 商店  
+ `deb [trusted=yes] https://pro-store-packages.uniontech.com/appstore eagle-pro appstore`
+
+#### 2.3 示例应用配置：
 - [GIMP 示例配置](tests/gimp.md)
 
 ### 3. 构建流程
@@ -63,6 +77,10 @@ Description: 软件描述信息（可选，支持多行）
 - **二进制兼容性：** 请确保 `Base` 与指定的 deb 软件包兼容，特别是 `libc`，如果不兼容，请调整 `Base` 为合适的版本。
 - **遵循模板格式：** 所有字段需按模板格式填写，否则可能导致构建失败。
 - **依赖性字段：** 如果 `Depends` 字段未填写，系统会尽可能自动检测，但某些情况下可能需要用户手动补充。
+
+### 5. 安全限制
+
+出于安全考虑，不能在构建服务器上运行自定义的构建脚本，请在本地运行自定义构建脚本[TODO: 教程尚未编写]。
 
 ## 贡献指南
 欢迎为项目贡献代码或建议！您可以通过以下方式参与：
