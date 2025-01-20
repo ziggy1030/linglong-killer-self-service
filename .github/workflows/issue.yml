@@ -279,6 +279,8 @@ jobs:
           \`\`\`log
           $(dd if=build.log bs=1000 count=32||echo "#生成失败")
           \`\`\`
+            
+          ${MESSAGE}
           
           "
           gh api \
@@ -294,4 +296,5 @@ jobs:
           LINK: ${{steps.check.outputs.link}}
           OK_MSG: "此请求已经构建成功，可在[此处](${{github.server_url}}/${{github.repository}}/releases/tag/${{steps.build.outputs.tag}})查看或下载构建结果。"
           DOWNLOAD_LINK: ${{github.server_url}}/${{github.repository}}/releases/download/${{steps.build.outputs.tag}}/${{steps.build.outputs.output}}
+          MESSAGE: ${{steps.build.outputs.message}}
         working-directory: ${{ env.WORKING_DIR }}
