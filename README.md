@@ -82,6 +82,32 @@ Description: 软件描述信息（可选，支持多行）
 
 出于安全考虑，不能在构建服务器上运行自定义的构建脚本，请在本地运行自定义构建脚本[TODO: 教程尚未编写]。
 
+
+## 本地运行
+
+`ll-killer`可以在本地运行，但目前仅测试了在项目根目录下工作，尚未测试其他工作目录。
+
+### 运行步骤
+
+1. 在工作目录新建一个`package.info`文件，填入上述项目构建参数。
+2. 运行`./ll-killer generate package.info`命令，生成`linglong.yaml`
+3. 运行`./ll-killer build-and-check`命令，过程中自动构建项目一到两次，并自动补全缺失依赖
+
+### 项目调试
+
+通过`ll-builder run`命令进入容器，自动执行linglong.yaml内配置的`entrypoint.sh`入口命令，并进入重塑文件系统后的容器环境，`$PREFIX`中的内容将无视玲珑容器限制，直接叠加到玲珑容器根目录。
+此时可以通过shell命令检查容器内映射后的文件布局。
+
+### 使用自定义构建脚本
+
+可以创建新的shell脚本，并在linglong.yaml中的build指令替换如下
+
+```sh
+./ll-killer -- <你的构建脚本>   #你可以在脚本中以root身份写入任意目录
+./ll-killer install             #复制收集到的文件更改到$PREFIX
+./ll-killer setup              #修复share中的符号链接、快捷方式和桌面图标
+```
+
 ## ll-killer命令说明
 
 ```
