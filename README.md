@@ -12,7 +12,7 @@ Linglong Killer Self-Service（简称 **ll-killer**）是一款面向玲珑社�
 
 ## 使用指南
 ### 1. 提交构建请求
-在 GitHub 的 [Issue](https://github.com/System233/linglong-killer-self-service/issues/new?template=%E8%87%AA%E5%8A%A9%E6%9E%84%E5%BB%BA.md) 区发起新 Issue，选择自助构建模板，按照以下格式填写内容：
+在 GitHub 的 [Issue](https://github.com/System233/linglong-killer-self-service/issues/new?template=self-build.yaml) 区发起新 Issue，选择自助构建模板，按照以下格式填写内容：
 
 ```package
 Package: 软件包名称

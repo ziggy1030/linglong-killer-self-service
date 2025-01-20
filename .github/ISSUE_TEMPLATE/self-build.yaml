@@ -1,0 +1,63 @@
+name: 自助构建
+description: 使用此模板进行自助打包构建
+title: "[self-build] "
+labels: 
+  - self-build
+body:
+  - type: markdown
+    attributes:
+      value: |
+        以下为 Deepin V23 环境的 deb 包参数模板，若 deb 包基于 Deepin V20 或 UOS 环境，请参考底部的模板。
+        可在系统上使用命令`apt cache show <包名>`查看要打包的deb包的信息。
+
+  - type: textarea
+    id: build-parameters
+    attributes:
+      label: 构建参数
+      description: 请填写以下构建参数，保存即触发构建。
+      value: |
+        ```package
+        Package: <deb包名>
+        Base: org.deepin.base/23.1.0
+        APT-Sources:
+         deb [trusted=yes] https://mirrors.tuna.tsinghua.edu.cn/deepin/beige beige main commercial community
+         deb [trusted=yes] https://com-store-packages.uniontech.com/appstorev23 beige appstore
+        ```
+
+  - type: markdown
+    attributes:
+      value: |
+        ### 参数说明
+        ```
+        Package: 必填，deb包名称  
+        Name: 可选，应用程序的名称，默认为软件包名称  
+        Version: 可选，软件包的版本号，默认构建最新版本  
+        Base: 可选，基础构建环境，默认为 `org.deepin.base/23.1.0`  
+        Runtime: 可选，构建 Runtime 环境，不建议使用   
+        Depends: 可选，其他依赖包列表，可使用逗号或空格分隔  
+        APT-Sources: 可选，使用的 APT 软件源，支持多个源，请使用 `[trusted=yes]` 忽略签名  
+        Description: 可选，软件包的描述信息，支持多行内容，请确保多行内容的行首有一个普通空格  
+        ```
+        
+        ### 示例模板
+        [GIMP](https://github.com/System233/linglong-killer-self-service/blob/main/tests/gimp.md)
+        
+        ### Deepin V23 环境模板
+        ```
+        Package: <deb包名>
+        Base: org.deepin.base/23.1.0
+        APT-Sources:
+         deb [trusted=yes] https://mirrors.tuna.tsinghua.edu.cn/deepin/beige beige main commercial community
+         deb [trusted=yes] https://com-store-packages.uniontech.com/appstorev23 beige appstore
+        ```
+        
+        ### Deepin V20/UOS 环境模板
+        ```
+        Package: <deb包名>
+        Base: org.deepin.foundation/20.0.0
+        APT-Sources:
+         deb [trusted=yes] https://mirrors.tuna.tsinghua.edu.cn/deepin/apricot apricot main contrib non-free
+         deb [trusted=yes] https://pro-store-packages.uniontech.com/appstore eagle-pro appstore
+        ```
+
+        请根据实际情况填写正确的参数。
