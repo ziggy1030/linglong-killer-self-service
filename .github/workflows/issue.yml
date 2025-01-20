@@ -160,10 +160,10 @@ jobs:
             FOUND="$(cat ldd-found.log)"
             MSG=""
             if [ -n "$FOUND" ];then
-              MSG="$MSG $(printf "${MSG_FOUND}\n" "$FOUND")"
+              MSG=$(printf "%s\n${MSG_FOUND}" "$MSG" "$FOUND")
             fi
             if [ -n "$MISSING" ];then
-              MSG="$MSG $(printf "${MSG_MISSING}\n" "$MISSING")"
+              MSG=$(printf "%s\n${MSG_MISSING}" "$MSG" "$MISSING")
             fi
             output message "$MSG"
           else
