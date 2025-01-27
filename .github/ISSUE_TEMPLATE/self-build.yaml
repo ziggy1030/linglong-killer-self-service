@@ -20,8 +20,9 @@ body:
         Package: <deb包名>
         Base: org.deepin.base/23.1.0
         APT-Sources:
-         deb [trusted=yes] https://mirrors.tuna.tsinghua.edu.cn/deepin/beige beige main commercial community
+         deb [trusted=yes] https://community-packages.deepin.com/deepin/beige beige main commercial community
          deb [trusted=yes] https://com-store-packages.uniontech.com/appstorev23 beige appstore
+         deb [trusted=yes] https://community-packages.deepin.com/driver-23/ driver non-free
         ```
 
   - type: markdown
@@ -47,8 +48,9 @@ body:
         Package: <deb包名>
         Base: org.deepin.base/23.1.0
         APT-Sources:
-         deb [trusted=yes] https://mirrors.tuna.tsinghua.edu.cn/deepin/beige beige main commercial community
+         deb [trusted=yes] https://community-packages.deepin.com/deepin/beige beige main commercial community
          deb [trusted=yes] https://com-store-packages.uniontech.com/appstorev23 beige appstore
+         deb [trusted=yes] https://community-packages.deepin.com/driver-23/ driver non-free
         ```
         
         ### Deepin V20/UOS 环境模板
@@ -56,7 +58,7 @@ body:
         Package: <deb包名>
         Base: org.deepin.foundation/20.0.0
         APT-Sources:
-         deb [trusted=yes] https://mirrors.tuna.tsinghua.edu.cn/deepin/apricot apricot main contrib non-free
+         deb [trusted=yes] https://community-packages.deepin.com/deepin/apricot apricot main contrib non-free
          deb [trusted=yes] https://pro-store-packages.uniontech.com/appstore eagle-pro appstore
         ```
 

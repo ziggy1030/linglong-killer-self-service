@@ -165,7 +165,6 @@ local)
     ;;
 local-env)
     APT_TMP_DIR=$(mktemp -d ll-killer.XXXXXX -p /tmp)
-    ./scripts/pkg-info.sh APT-Sources >sources.list
     mkdir -p sources.list.d "$APT_TMP_DIR/apt" "$APT_TMP_DIR/cache"
     mount --bind ./sources.list /etc/apt/sources.list
     mount --rbind ./sources.list.d /etc/apt/sources.list.d
@@ -175,6 +174,7 @@ local-env)
     reexec shell
     ;;
 generate)
+    ./scripts/pkg-info.sh APT-Sources >sources.list
     exec "$SELF" local "$ROOT_DIR/generate.sh" "$@"
     ;;
 setup)

@@ -24,6 +24,6 @@ if [ -n "$INSTALLED" ]; then
 fi
 if ! apt install --no-upgrade -yf "$PKG" $PKG_FOUND "${PKGS[@]}"; then
     CODE=$?
-    echo "apt exited with code $CODE, fallback to dpkg-install..."
+    echo "[fallback] apt exited with fail, fallback to download-only and dpkg-install..." >&2
     apt install --no-upgrade -ydf "$PKG" $PKG_FOUND "${PKGS[@]}" && $SCRIPT_DIR/dpkg-install.sh
 fi
