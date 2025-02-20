@@ -1,0 +1,300 @@
+# https://docs.github.com/zh/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows
+name: Check Request
+permissions:
+  issues: write
+  contents: write
+on: 
+  issues:
+    types: [opened,edited]
+env:
+  NO_INSTALL: false
+  NO_BUILD: false
+  # DEBUG: false
+  WORKING_DIR: /tmp/ll-killer
+jobs:
+  process:
+    name: Process
+    if: ${{ !github.event.issue.pull_request&&github.event.issue.state=='open'&&contains(github.event.issue.labels.*.name, 'self-build') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check
+        id: check
+        run: |
+          mkdir -p ${{ env.WORKING_DIR }}
+          sudo mount --rbind . ${{ env.WORKING_DIR }}
+          chmod 777 ${{ env.WORKING_DIR }}
+          cd ${{ env.WORKING_DIR }}
+          LF=$'\n'
+          PKG_INFO=$(echo "$ISSUE_BODY"|grep -zoP '```package\s*\K[\s\S]*(?=```)')
+
+          LINK="$GITHUB_SERVER_URL/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          RUNNING="https://img.shields.io/badge/build-%E8%BF%90%E8%A1%8C%E4%B8%AD-blue"
+
+          STATUS_ICON="![状态]($RUNNING)"
+          STATUS_LINK="[$STATUS_ICON]($LINK)"
+          TIME=$(LC_ALL=zh_CN.UTF-8 date)
+          function output(){
+            echo "$1<<EOF" >>$GITHUB_OUTPUT
+            echo "$2" >>$GITHUB_OUTPUT
+            echo "EOF" >>$GITHUB_OUTPUT
+          }
+          function pkg_info(){
+            field=$1
+            cat package.info | sed -n "/^$field:/,/^[^ ]/p" | sed -E -e "s/^$field://" | grep '^\s' | sed -e 's/^\s*//'
+          }
+          if [ -z "$PKG_INFO" ] || ! echo "$PKG_INFO" | grep -q "^Package:";then
+            MSG="$INVALID_MSG"
+            VALID=no
+          else
+            echo "$PKG_INFO">package.info
+            if ! sudo ./ll-killer generate package.info;then
+              VALID=no
+              MSG="$NO_PKG_MSG"
+            else
+              VALID=yes
+              YAML=$(printf '\n```yaml\n%s\n```\n' "$(cat linglong.yaml)")
+              MSG="$VALID_MSG
+
+          $TIME
+          $STATUS_LINK
+
+          ## 构建参数
+          \`\`\`package${LF}${PKG_INFO}${LF}\`\`\`
+
+          ## linglong.yaml
+          \`\`\`yaml${LF}$(cat linglong.yaml)${LF}\`\`\`
+          
+              "
+              base=$(grep -oP 'base:\s*\K.*$' linglong.yaml )
+              package=$(pkg_info Package)
+              output package "$package"
+              output config "$(cat package.info)"
+              output linglong "$(cat linglong.yaml)"
+              echo "base=$base" >>$GITHUB_OUTPUT
+            fi
+          fi
+          
+          echo "valid=${VALID}" >>$GITHUB_OUTPUT
+          echo "link=$LINK" >>$GITHUB_OUTPUT
+          output message "${MSG}"
+        env:
+          DEBUG: debug
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          XDG_RUNTIME_DIR: /run/user/1001
+          INVALID_MSG: "此请求内容格式无效, 请重新编辑主题，包含一个```package```代码块, 并至少添加一个Package字段, 用于指定主要的包"
+          VALID_MSG: "此请求格式验证有效, 请等待系统构建构建完成, 之后系统会自动发送反馈。"
+          NO_PKG_MSG: "此请求格式验证有效, 但无法搜索到此软件包, 请检查包名和APT源, 确保包在APT源中存在。"
+          DEFAULT_BASE: org.deepin.base/23.1.0
+      # - uses: valeriangalliat/action-sshd-cloudflared@v3
+      - name: View
+        id: view
+        if: always()
+        run: |
+          # Fetch all comments from the issue
+          EXISTING_COMMENT=$(gh api -X GET /repos/${{ github.repository }}/issues/${{github.event.issue.number}}/comments -q 'map(select(.user.login=="${{env.BOT_NAME}}"))[0]')
+          if [[ -n "$EXISTING_COMMENT" ]]; then
+            # Extract the ID of the existing comment
+            # Update the existing comment
+            echo "$EXISTING_COMMENT"
+            COMMENT_ID=$(echo "$EXISTING_COMMENT" | jq -r .id)
+            echo "Found an existing comment by $BOT_NAME with ID $COMMENT_ID. Updating it."
+            gh api \
+              -X PATCH \
+              -H "Accept: application/vnd.github+json" \
+              /repos/${{ github.repository }}/issues/comments/$COMMENT_ID \
+              -f body="$UPDATE_COMMENT_BODY"
+            echo "comment_id=${COMMENT_ID}" >>$GITHUB_OUTPUT
+          else
+            echo "No existing comment by $BOT_NAME found. Creating a new comment."
+            # Create a new comment
+            COMMENT_ID=$(gh api -X POST "/repos/${{ github.repository }}/issues/${{github.event.issue.number}}/comments" -f body="$NET_COMMENT_BODY" | jq ".id") 
+          fi
+          echo "comment_id=${COMMENT_ID}" >>$GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BOT_NAME: github-actions[bot]
+          NET_COMMENT_BODY: "你刚刚创建了此构建请求, ${{steps.check.outputs.message}}"
+          UPDATE_COMMENT_BODY: "你刚刚更新了此构建请求, ${{steps.check.outputs.message}}"
+        working-directory: ${{ env.WORKING_DIR }}
+      - name: Install linglong
+        if: ${{steps.check.outputs.valid=='yes'}}
+        run: |
+          dpkg -l | grep libc6
+          sudo apt install -y apt-transport-https ca-certificates curl gpg
+          sudo mkdir -p /etc/apt/keyrings/
+          curl -fsSL https://download.opensuse.org/repositories/home:/kamiyadm/xUbuntu_24.04/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/linglong-apt-keyring.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/linglong-apt-keyring.gpg] https://download.opensuse.org/repositories/home:/kamiyadm/xUbuntu_24.04/ ./" | sudo tee /etc/apt/sources.list.d/linglong.list
+          sudo apt update
+          sudo apt install linglong-builder linglong-box linglong-bin xdg-utils -y
+          ll-cli --version
+      - name: Install apt-file
+        if: ${{steps.check.outputs.valid=='yes'}}
+        run: |
+          sudo apt install apt-file -y
+      - name: Cache
+        uses: actions/cache@v4
+        if: ${{steps.check.outputs.valid=='yes'}}
+        with:
+          path: |
+            ~/.cache/linglong-builder/
+          key: linglong-builder-cache-${{steps.check.outputs.base}}
+      - name: Build
+        id: build
+        if: ${{steps.check.outputs.valid=='yes'}}
+        run: |
+          function output(){
+            echo "$1<<EOF" >>$GITHUB_OUTPUT
+            echo "$2" >>$GITHUB_OUTPUT
+            echo "EOF" >>$GITHUB_OUTPUT
+          }
+          if [ "${{env.NO_BUILD}}" != "true" ];then
+            sudo mkdir -p $XDG_RUNTIME_DIR
+            sudo chown -R 1001:1001 $XDG_RUNTIME_DIR
+            sudo chmod 0700 $XDG_RUNTIME_DIR
+            ./ll-killer build-and-check >&1 | tee build.log
+            ll-builder export -l
+            MISSING="$(cat ldd-check.log)"
+            FOUND="$(cat ldd-found.log)"
+            MSG=""
+            if [ -n "$FOUND" ];then
+              MSG=$(printf "%s\n${MSG_FOUND}" "$MSG" "$FOUND")
+            fi
+            if [ -n "$MISSING" ];then
+              MSG=$(printf "%s\n${MSG_MISSING}" "$MSG" "$MISSING")
+            fi
+            output message "$MSG"
+          else
+            echo "test" > "${{steps.check.outputs.package}}_binary.layer"
+          fi
+          output=$(basename $(find . -name "*binary.layer"))
+          sha1sum "$output" "package.info" "linglong.yaml" > checksum.sha1
+          echo "output=${output}" >>$GITHUB_OUTPUT
+          echo "output_sha1=checksum.sha1" >>$GITHUB_OUTPUT
+          echo "tag=${TAG}" >>$GITHUB_OUTPUT
+        env:
+          BODY: ${{ github.event.issue.body }}
+          XDG_RUNTIME_DIR: /run/user/1001
+          TAG: self-build-${{github.event.issue.number}}
+          MSG_MISSING: "缺失以下文件:\n```\n%s\n```\n"
+          MSG_FOUND: "自动添加了以下库:\n```\n%s\n```\n"
+        working-directory: ${{ env.WORKING_DIR }}
+      - name: Release
+        if: ${{steps.check.outputs.valid=='yes'}}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{steps.build.outputs.tag}}
+          body: |
+            此构建请求来自 #${{github.event.issue.number}}, 构建目标为 `${{steps.check.outputs.package}}`。
+            ## 构建参数
+            ```package
+            ${{steps.check.outputs.config}}
+            ```
+            ## linglong.yaml
+            ```yaml
+            ${{steps.check.outputs.linglong}}
+            ```
+            ${{steps.build.outputs.message}}
+          prerelease: ${{github.event.issue.state=='open'}}
+          files: |
+            package.info
+            linglong.yaml
+            ${{steps.build.outputs.output}}
+            ${{steps.build.outputs.output_sha1}}
+      - name: Reply Fail Result
+        if: failure()
+        run: |
+          ERROR_ICON=https://img.shields.io/badge/build-%E6%9E%84%E5%BB%BA%E5%A4%B1%E8%B4%A5-red
+          TIME=$(LC_ALL=zh_CN.UTF-8 date)
+          STATUS_ICON="![状态]($ERROR_ICON)"
+          STATUS_LINK="[$STATUS_ICON]($LINK)"
+          LF=$'\n'
+          UPDATE_COMMENT_BODY="${FAIL_MSG}
+
+          $TIME
+          $STATUS_LINK
+
+          ## 构建参数
+          \`\`\`package
+          $(cat package.info||echo "#生成失败")
+          \`\`\`
+
+          ## linglong.yaml
+          \`\`\`yaml
+          $(cat linglong.yaml||echo "#生成失败")
+          \`\`\`
+          
+          ## 构建日志
+          \`\`\`log
+          $(dd if=build.log bs=1000 count=32||echo "#生成失败")
+          \`\`\`
+
+          "
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/issues/comments/$COMMENT_ID \
+            -f body="$UPDATE_COMMENT_BODY"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BODY: ${{ github.event.issue.body }}
+          XDG_RUNTIME_DIR: /run/user/1001
+          COMMENT_ID: ${{steps.view.outputs.comment_id}}
+          LINK: ${{steps.check.outputs.link}}
+          FAIL_MSG: "构建失败, 请检查配置或工作流输出。"
+        working-directory: ${{ env.WORKING_DIR }}
+      - name: Reply Success Result
+        if: ${{steps.check.outputs.valid=='yes'&&success()}}
+        run: |
+          OK_ICON="https://img.shields.io/badge/build-%E6%9E%84%E5%BB%BA%E6%88%90%E5%8A%9F-brigthgreen"
+          TIME=$(LC_ALL=zh_CN.UTF-8 date)
+          STATUS_ICON="![状态]($OK_ICON)"
+          STATUS_LINK="[$STATUS_ICON]($LINK)"
+          LF=$'\n'
+          UPDATE_COMMENT_BODY="${OK_MSG}
+
+          $TIME
+          $STATUS_LINK
+
+          ## 构建输出
+          [${{steps.build.outputs.output}}]($DOWNLOAD_LINK)
+          * 哈希值
+          \`\`\`sha1
+          $(cat ${{steps.build.outputs.output_sha1}})
+          \`\`\`
+
+          ## 构建参数
+          \`\`\`package
+          $(cat package.info||echo "#生成失败")
+          \`\`\`
+
+          ## linglong.yaml
+          \`\`\`yaml
+          $(cat linglong.yaml||echo "#生成失败")
+          \`\`\`
+          
+          ## 构建日志
+          \`\`\`log
+          $(dd if=build.log bs=1000 count=32||echo "#生成失败")
+          \`\`\`
+            
+          ${MESSAGE}
+          
+          "
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/issues/comments/$COMMENT_ID \
+            -f body="$UPDATE_COMMENT_BODY"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BODY: ${{ github.event.issue.body }}
+          XDG_RUNTIME_DIR: /run/user/1001
+          COMMENT_ID: ${{steps.view.outputs.comment_id}}
+          LINK: ${{steps.check.outputs.link}}
+          OK_MSG: "此请求已经构建成功，可在[此处](${{github.server_url}}/${{github.repository}}/releases/tag/${{steps.build.outputs.tag}})查看或下载构建结果。"
+          DOWNLOAD_LINK: ${{github.server_url}}/${{github.repository}}/releases/download/${{steps.build.outputs.tag}}/${{steps.build.outputs.output}}
+          MESSAGE: ${{steps.build.outputs.message}}
+        working-directory: ${{ env.WORKING_DIR }}
